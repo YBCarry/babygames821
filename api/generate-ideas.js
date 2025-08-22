@@ -59,17 +59,29 @@ app.post('/api/generate-ideas', async (req, res) => {
     if (!apiUrl.startsWith('http')) apiUrl = 'https://' + apiUrl;
     
     // 步骤 1: 上传文件到 Dify
-    const uploadFileUrl = `${apiUrl}/v1/files/upload`;
-    const uploadFormData = new FormData();
-    uploadFormData.append('user', 'my-app-user-123');
-    uploadFormData.append('file', buffer, {
-      filename: imageName,
-      contentType: imageType,
+    import { Readable } from 'stream';
+    const fileStream = Readable.from(buffer);
+
+    uploadFormData.append('file', fileStream, {
+      filename: imageName,   // 必须
+      contentType: imageType // 必须
     });
     
+    // 2. 如果文件就在磁盘，直接流式读取
+    // uploadFormData.append('file', fs.createReadStream(imagePath), {
+    //   filename: imageName,
+    //   contentType: imageType
+    // });
+    
     const uploadResponse = await axios.post(uploadFileUrl, uploadFormData, {
-      headers: { ...uploadFormData.getHeaders(), 'Authorization': `Bearer ${difyApiKey}` },
+      headers: {
+        ...uploadFormData.getHeaders(),
+        Authorization: `Bearer ${difyApiKey}`
+      },
+      maxBodyLength: Infinity,   // 避免大文件被截断
+      maxContentLength: Infinity
     });
+
     const fileId = uploadResponse.data.id;
     console.log('File uploaded to Dify successfully, file_id:', fileId);
 
